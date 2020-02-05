@@ -14,6 +14,8 @@ fn main() {
 
     let data = [0.0; NUM_ELEMENTS];
 
+    println!("{:?}", &data[500..550]);
+
     // Create a 2D array view from borrowed data
     let a2d = aview1(&data).into_shape((NUM_WORDS, VEC_SIZE)).unwrap();
 
