@@ -1,6 +1,8 @@
 extern crate ndarray;
-use ndarray::s;
-use ndarray::Array1;
+extern crate ndarray_rand;
+use ndarray::{s, Array, Array1, ArrayView, ArrayViewMut};
+use ndarray_rand::rand::distributions::Uniform;
+use ndarray_rand::RandomExt;
 
 use std::collections::HashMap;
 
@@ -31,15 +33,15 @@ fn main() {
         "i", "walked", "on", "the", "magical", "white", "shore", "in", "my", "white", "shoes",
         "and", "white", "sky",
     ];
-    const NUM_WORDS: usize = 1000;
-    const VEC_SIZE: usize = 100;
-    const NUM_ELEMENTS: usize = NUM_WORDS * VEC_SIZE;
+    const NUM_WORDS: i32 = 1000;
+    const VEC_SIZE: i32 = 100;
+    const NUM_ELEMENTS: i32 = NUM_WORDS * VEC_SIZE;
+    const WINDOW_SIZE: i32 = 1;
 
-    let mut test = Array1::zeros(NUM_ELEMENTS);
-    println!("{:?}", test);
-    test += 1.0;
-    println!("{:?}", test);
-    println!("{:?}", test.slice(s![..32]));
+    let udist = Uniform::from(-0.5..0.5);
+    let mut output_embeddings = Array1::<f32>::zeros(NUM_ELEMENTS as usize);
+    let mut hidden_embeddings = Array::random(NUM_ELEMENTS as usize, udist);
+    println!("{:?}", hidden_embeddings);
 
     let words: HashMap<&str, i32> = make_lookup(&ex_sentence);
     let rev: HashMap<i32, &str> = reverse_lookup(&words);
@@ -51,9 +53,36 @@ fn main() {
 
     println!("{:?}", mapped_sentence);
 
+    let select_output = |tar| output_embeddings.slice(s![tar * VEC_SIZE..(tar + 1) * VEC_SIZE]);
+    //let select_hidden = |tar| hidden_embeddings.slice(s![tar * VEC_SIZE..(tar + 1) * VEC_SIZE]);
+
+    let max_s = mapped_sentence.len() as i32;
+    for i in 0..max_s {
+        let target_vec = select_output(mapped_sentence[i as usize]);
+        let mut local_gradient = Array1::<f32>::zeros(VEC_SIZE as usize); //neu1e
+        let mut test = Array1::<f32>::ones(VEC_SIZE as usize);
+        for j in i - WINDOW_SIZE..i + WINDOW_SIZE + 1 {
+            // Only take valid samples, and not target ind
+            if j >= 0 && j < max_s && j != i {
+                let pos_vec = select_output(mapped_sentence[j as usize]);
+                let res = target_vec.dot(&pos_vec);
+
+                let g = res; //TODO more complex gradient
+                test.fill(g);
+                //TODO COMBINE LOCAL GRADIENT WITH VECTOR
+                local_gradient += test * pos_vec;
+                println!("rvec {} * {}: {:?}", i, j, res);
+                //TODO also calculate negative samples
+                // update accumulated gradient of
+            }
+        }
+    }
     //words.insert()
 
     // let vecs: CsMat<f32> = CsMat::zero((num_words, vec_size));
     // println!("{}", vecs.cols());
     // println!("{}", vecs.to_dense().slice(s![5, 0, 0]));
+
+    // Do calculation on targ --> pos_exs and neg_exs. Return sparse vector
+    // apply this sparse vector to global scope.
 }
